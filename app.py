@@ -2446,7 +2446,6 @@ def display_results(results):
             st.markdown("---")
         
         st.markdown("### Download Raw Transactions")
-        download_col1, download_col2 = st.columns(2)
         
         if processor_type == 'fec':
             formatted_contributions_df = format_contributions_for_download(contributions_df)
@@ -2455,27 +2454,32 @@ def display_results(results):
             formatted_contributions_df = contributions_df.copy()
             formatted_expenditures_df = expenditures_df.copy()
         
-        if not formatted_contributions_df.empty:
-            contrib_csv = formatted_contributions_df.to_csv(index=False)
-            download_col1.download_button(
-                label="Download Contributions",
-                data=contrib_csv,
-                file_name="contributions.csv",
-                mime="text/csv"
-            )
+        if formatted_contributions_df.empty and formatted_expenditures_df.empty:
+            st.info("No contributions or expenditures available to download.")
         else:
-            download_col1.info("No contributions available to download.")
-        
-        if not formatted_expenditures_df.empty:
-            expend_csv = formatted_expenditures_df.to_csv(index=False)
-            download_col2.download_button(
-                label="Download Expenditures",
-                data=expend_csv,
-                file_name="expenditures.csv",
-                mime="text/csv"
+            if formatted_contributions_df.empty and formatted_contributions_df.columns.empty:
+                formatted_contributions_df = pd.DataFrame(columns=["No Data"])
+            if formatted_expenditures_df.empty and formatted_expenditures_df.columns.empty:
+                formatted_expenditures_df = pd.DataFrame(columns=["No Data"])
+            
+            data_buffer = BytesIO()
+            try:
+                with pd.ExcelWriter(data_buffer, engine="xlsxwriter") as writer:
+                    formatted_contributions_df.to_excel(writer, index=False, sheet_name="Campaign Contributions")
+                    formatted_expenditures_df.to_excel(writer, index=False, sheet_name="Campaign Expenditures")
+            except ModuleNotFoundError:
+                with pd.ExcelWriter(data_buffer, engine="openpyxl") as writer:
+                    formatted_contributions_df.to_excel(writer, index=False, sheet_name="Campaign Contributions")
+                    formatted_expenditures_df.to_excel(writer, index=False, sheet_name="Campaign Expenditures")
+            
+            data_buffer.seek(0)
+            
+            st.download_button(
+                label="Download Contributions & Expenditures",
+                data=data_buffer.getvalue(),
+                file_name="campaign_contributions_expenditures.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-        else:
-            download_col2.info("No expenditures available to download.")
         
         st.markdown("---")
         

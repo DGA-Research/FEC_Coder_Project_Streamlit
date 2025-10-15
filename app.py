@@ -123,12 +123,102 @@ def format_fec_export(df, column_map, column_order):
 
 def format_contributions_for_download(df):
     """Prepare Schedule A data for export."""
-    return format_fec_export(df, CONTRIBUTION_EXPORT_MAP, CONTRIBUTION_EXPORT_ORDER)
+    formatted_df = format_fec_export(df, CONTRIBUTION_EXPORT_MAP, CONTRIBUTION_EXPORT_ORDER)
+    
+    if formatted_df is None:
+        return pd.DataFrame()
+    
+    formatted_df = formatted_df.copy()
+    
+    def safe_str(value):
+        if pd.isna(value):
+            return ""
+        return str(value).strip()
+    
+    def build_full_name(row):
+        org_name = safe_str(row.get('contributor_organization_name', ''))
+        if org_name:
+            return org_name
+        
+        name_parts = [
+            safe_str(row.get('contributor_prefix', '')),
+            safe_str(row.get('contributor_first_name', '')),
+            safe_str(row.get('contributor_middle_name', '')),
+            safe_str(row.get('contributor_last_name', '')),
+            safe_str(row.get('contributor_suffix', ''))
+        ]
+        return " ".join(part for part in name_parts if part).strip()
+    
+    def build_address(row):
+        line1 = safe_str(row.get('contributor_street_1', ''))
+        line2 = safe_str(row.get('contributor_street_2', ''))
+        if line1 and line2:
+            return f"{line1}, {line2}"
+        return line1 or line2
+    
+    formatted_df['FULL NAME'] = formatted_df.apply(build_full_name, axis=1)
+    formatted_df['ADDRESS'] = formatted_df.apply(build_address, axis=1)
+    formatted_df['CITY'] = formatted_df.apply(lambda row: safe_str(row.get('contributor_city', '')), axis=1)
+    formatted_df['STATE'] = formatted_df.apply(lambda row: safe_str(row.get('contributor_state', '')), axis=1)
+    formatted_df['ZIP'] = formatted_df.apply(lambda row: safe_str(row.get('contributor_zip', '')), axis=1)
+    formatted_df['OCCUPATION'] = formatted_df.apply(lambda row: safe_str(row.get('occupation', '')), axis=1)
+    formatted_df['AMOUNT'] = formatted_df.get('contribution_amount', pd.Series(dtype=float))
+    formatted_df['TYPE'] = formatted_df.apply(lambda row: safe_str(row.get('entity_type', '')), axis=1)
+    
+    preferred_order = ['FULL NAME', 'ADDRESS', 'CITY', 'STATE', 'ZIP', 'OCCUPATION', 'AMOUNT', 'TYPE']
+    remaining_columns = [col for col in formatted_df.columns if col not in preferred_order]
+    final_columns = preferred_order + remaining_columns
+    
+    return formatted_df[final_columns]
 
 
 def format_expenditures_for_download(df):
     """Prepare Schedule B-style data for export."""
-    return format_fec_export(df, EXPENDITURE_EXPORT_MAP, EXPENDITURE_EXPORT_ORDER)
+    formatted_df = format_fec_export(df, EXPENDITURE_EXPORT_MAP, EXPENDITURE_EXPORT_ORDER)
+    
+    if formatted_df is None:
+        return pd.DataFrame()
+    
+    formatted_df = formatted_df.copy()
+    
+    def safe_str(value):
+        if pd.isna(value):
+            return ""
+        return str(value).strip()
+    
+    def build_full_name(row):
+        org_name = safe_str(row.get('payee_organization_name', ''))
+        if org_name:
+            return org_name
+        
+        name_parts = [
+            safe_str(row.get('payee_prefix', '')),
+            safe_str(row.get('payee_first_name', '')),
+            safe_str(row.get('payee_middle_name', '')),
+            safe_str(row.get('payee_last_name', '')),
+            safe_str(row.get('payee_suffix', ''))
+        ]
+        return " ".join(part for part in name_parts if part).strip()
+    
+    def build_address(row):
+        line1 = safe_str(row.get('payee_street_1', ''))
+        line2 = safe_str(row.get('payee_street_2', ''))
+        if line1 and line2:
+            return f"{line1}, {line2}"
+        return line1 or line2
+    
+    formatted_df['FULL NAME'] = formatted_df.apply(build_full_name, axis=1)
+    formatted_df['ADDRESS'] = formatted_df.apply(build_address, axis=1)
+    formatted_df['CITY'] = formatted_df.apply(lambda row: safe_str(row.get('payee_city', '')), axis=1)
+    formatted_df['STATE'] = formatted_df.apply(lambda row: safe_str(row.get('payee_state', '')), axis=1)
+    formatted_df['ZIP'] = formatted_df.apply(lambda row: safe_str(row.get('payee_zip', '')), axis=1)
+    formatted_df['AMOUNT'] = formatted_df.get('disbursement_amount', pd.Series(dtype=float))
+    
+    preferred_order = ['FULL NAME', 'ADDRESS', 'CITY', 'STATE', 'ZIP', 'AMOUNT']
+    remaining_columns = [col for col in formatted_df.columns if col not in preferred_order]
+    final_columns = preferred_order + remaining_columns
+    
+    return formatted_df[final_columns]
 
 def load_zip_coordinates():
     """Load ZIP coordinates from comprehensive CSV database"""

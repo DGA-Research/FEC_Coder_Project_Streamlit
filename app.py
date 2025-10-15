@@ -1834,6 +1834,8 @@ def display_results(results):
     
     bad_donors_df = results['bad_donors']
     pac_data_df = results['pac_data']
+    contributions_df = st.session_state.get('contributions_df', pd.DataFrame())
+    expenditures_df = st.session_state.get('expenditures_df', pd.DataFrame())
     
     # STREAMLINED VERSION: Show only Individual Donors and Geographic Analysis
     tab1, tab2, tab3 = st.tabs(["🚨 Flagged Individuals", "🗺️ Geographic Analysis", "📊 Summary"])
@@ -1886,6 +1888,14 @@ def display_results(results):
             if 'original_df' in st.session_state and 'current_processor' in st.session_state:
                 original_df = st.session_state['original_df']
                 current_processor = st.session_state['current_processor']
+                contributions_df = pd.DataFrame()
+                expenditures_df = pd.DataFrame()
+                
+                if hasattr(current_processor, 'split_transactions'):
+                    contributions_df, expenditures_df = current_processor.split_transactions(original_df)
+                
+                st.session_state['contributions_df'] = contributions_df
+                st.session_state['expenditures_df'] = expenditures_df
                 
                 # Extract filer information and financial data
                 filer_info = current_processor.extract_filer_info(original_df)
@@ -2326,6 +2336,33 @@ def display_results(results):
                 st.info("💡 Date and amount information not available for time series analysis")
             
             st.markdown("---")
+        
+        st.markdown("### Download Raw Transactions")
+        download_col1, download_col2 = st.columns(2)
+        
+        if not contributions_df.empty:
+            contrib_csv = contributions_df.to_csv(index=False)
+            download_col1.download_button(
+                label="Download Contributions",
+                data=contrib_csv,
+                file_name="contributions.csv",
+                mime="text/csv"
+            )
+        else:
+            download_col1.info("No contributions available to download.")
+        
+        if not expenditures_df.empty:
+            expend_csv = expenditures_df.to_csv(index=False)
+            download_col2.download_button(
+                label="Download Expenditures",
+                data=expend_csv,
+                file_name="expenditures.csv",
+                mime="text/csv"
+            )
+        else:
+            download_col2.info("No expenditures available to download.")
+        
+        st.markdown("---")
         
 
 def main():

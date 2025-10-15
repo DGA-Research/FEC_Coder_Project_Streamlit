@@ -241,7 +241,6 @@ def format_expenditures_for_download(df):
         'payee_city',
         'payee_state',
         'payee_zip',
-        'AMOUNT',
         'disbursement_amount',
         'disbursement_purpose'
     ]
@@ -250,7 +249,6 @@ def format_expenditures_for_download(df):
         if col not in formatted_df.columns:
             formatted_df[col] = ''
     
-    formatted_df['AMOUNT'] = pd.to_numeric(formatted_df['AMOUNT'], errors='coerce')
     formatted_df['disbursement_amount'] = pd.to_numeric(formatted_df['disbursement_amount'], errors='coerce')
     
     return formatted_df[preferred_columns]

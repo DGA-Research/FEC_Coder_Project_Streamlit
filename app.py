@@ -141,7 +141,6 @@ def format_contributions_for_download(df):
             return org_name
         
         name_parts = [
-            safe_str(row.get('contributor_prefix', '')),
             safe_str(row.get('contributor_first_name', '')),
             safe_str(row.get('contributor_middle_name', '')),
             safe_str(row.get('contributor_last_name', '')),
@@ -165,11 +164,28 @@ def format_contributions_for_download(df):
     formatted_df['AMOUNT'] = formatted_df.get('contribution_amount', pd.Series(dtype=float))
     formatted_df['TYPE'] = formatted_df.apply(lambda row: safe_str(row.get('entity_type', '')), axis=1)
     
-    preferred_order = ['FULL NAME', 'ADDRESS', 'CITY', 'STATE', 'ZIP', 'OCCUPATION', 'AMOUNT', 'TYPE']
-    remaining_columns = [col for col in formatted_df.columns if col not in preferred_order]
-    final_columns = preferred_order + remaining_columns
+    preferred_columns = [
+        'transaction_id',
+        'form_type',
+        'contribution_date',
+        'FULL NAME',
+        'entity_type',
+        'contributor_street_1',
+        'contributor_street_2',
+        'contributor_city',
+        'contributor_state',
+        'OCCUPATION',
+        'employer',
+        'AMOUNT'
+    ]
     
-    return formatted_df[final_columns]
+    for col in preferred_columns:
+        if col not in formatted_df.columns:
+            formatted_df[col] = ''
+    
+    formatted_df['AMOUNT'] = pd.to_numeric(formatted_df['AMOUNT'], errors='coerce')
+    
+    return formatted_df[preferred_columns]
 
 
 def format_expenditures_for_download(df):
@@ -214,11 +230,30 @@ def format_expenditures_for_download(df):
     formatted_df['ZIP'] = formatted_df.apply(lambda row: safe_str(row.get('payee_zip', '')), axis=1)
     formatted_df['AMOUNT'] = formatted_df.get('disbursement_amount', pd.Series(dtype=float))
     
-    preferred_order = ['FULL NAME', 'ADDRESS', 'CITY', 'STATE', 'ZIP', 'AMOUNT']
-    remaining_columns = [col for col in formatted_df.columns if col not in preferred_order]
-    final_columns = preferred_order + remaining_columns
+    preferred_columns = [
+        'form_type',
+        'committee_id',
+        'disbursement_date',
+        'payee_organization_name',
+        'entity_type',
+        'payee_street_1',
+        'payee_street_2',
+        'payee_city',
+        'payee_state',
+        'payee_zip',
+        'AMOUNT',
+        'disbursement_amount',
+        'disbursement_purpose'
+    ]
     
-    return formatted_df[final_columns]
+    for col in preferred_columns:
+        if col not in formatted_df.columns:
+            formatted_df[col] = ''
+    
+    formatted_df['AMOUNT'] = pd.to_numeric(formatted_df['AMOUNT'], errors='coerce')
+    formatted_df['disbursement_amount'] = pd.to_numeric(formatted_df['disbursement_amount'], errors='coerce')
+    
+    return formatted_df[preferred_columns]
 
 def load_zip_coordinates():
     """Load ZIP coordinates from comprehensive CSV database"""

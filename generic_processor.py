@@ -119,6 +119,15 @@ class GenericDataProcessor:
             # print(f"DEBUG: Could not parse amount '{amount_value}': {e}")
             return 0.0
     
+    def split_transactions(self, df):
+        """
+        Generic uploads are treated entirely as contributions.
+        """
+        if df is None or df.empty:
+            return pd.DataFrame(), pd.DataFrame()
+        
+        return df.copy(), pd.DataFrame()
+    
     def _process_all_individual_donors(self, df):
         """Process all individual donor data and flag against databases"""
         all_donors = []

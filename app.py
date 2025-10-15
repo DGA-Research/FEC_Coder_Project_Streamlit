@@ -23,6 +23,113 @@ st.set_page_config(
 # Global ZIP coordinate cache
 ZIP_COORDINATES_CACHE = None
 
+# Column name mappings for cleaned downloads
+CONTRIBUTION_EXPORT_MAP = {
+    'A': 'form_type',
+    'B': 'committee_id',
+    'C': 'transaction_id',
+    'D': 'back_reference_transaction_id',
+    'E': 'back_reference_schedule_name',
+    'F': 'entity_type',
+    'G': 'contributor_organization_name',
+    'H': 'contributor_last_name',
+    'I': 'contributor_first_name',
+    'J': 'contributor_middle_name',
+    'K': 'contributor_prefix',
+    'L': 'contributor_suffix',
+    'M': 'contributor_street_1',
+    'N': 'contributor_street_2',
+    'O': 'contributor_city',
+    'P': 'contributor_state',
+    'Q': 'contributor_zip',
+    'R': 'election_code',
+    'S': 'election_other_description',
+    'T': 'contribution_date',
+    'U': 'contribution_amount',
+    'V': 'aggregate_cycle_amount',
+    'W': 'transaction_description',
+    'X': 'employer',
+    'Y': 'occupation',
+    'Z': 'donor_committee_name',
+    'AA': 'donor_committee_id',
+    'AB': 'memo_code',
+    'AC': 'memo_text'
+}
+
+CONTRIBUTION_EXPORT_ORDER = [
+    'A', 'B', 'C', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+    'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+    'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC'
+]
+
+EXPENDITURE_EXPORT_MAP = {
+    'A': 'form_type',
+    'B': 'committee_id',
+    'C': 'transaction_id',
+    'D': 'back_reference_transaction_id',
+    'E': 'back_reference_schedule_name',
+    'F': 'entity_type',
+    'G': 'payee_organization_name',
+    'H': 'payee_last_name',
+    'I': 'payee_first_name',
+    'J': 'payee_middle_name',
+    'K': 'payee_prefix',
+    'L': 'payee_suffix',
+    'M': 'payee_street_1',
+    'N': 'payee_street_2',
+    'O': 'payee_city',
+    'P': 'payee_state',
+    'Q': 'payee_zip',
+    'R': 'disbursement_category_code',
+    'S': 'disbursement_description',
+    'T': 'disbursement_date',
+    'U': 'disbursement_amount',
+    'V': 'aggregate_cycle_amount',
+    'W': 'disbursement_purpose',
+    'AB': 'memo_code',
+    'AC': 'memo_text'
+}
+
+EXPENDITURE_EXPORT_ORDER = [
+    'A', 'B', 'C', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+    'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+    'W', 'AB', 'AC'
+]
+
+
+def format_fec_export(df, column_map, column_order):
+    """Rename and reorder FEC schedule data for cleaner downloads."""
+    if df is None or df.empty:
+        ordered_headers = [column_map[col] for col in column_order if col in column_map]
+        return pd.DataFrame(columns=ordered_headers)
+    
+    available_columns = [col for col in column_order if col in df.columns]
+    if not available_columns:
+        return df.copy()
+    
+    renamed_df = df[available_columns].copy()
+    rename_map = {col: column_map[col] for col in available_columns if col in column_map}
+    renamed_df = renamed_df.rename(columns=rename_map)
+    
+    # Clean ZIP-style columns to preserve leading zeros
+    zip_columns = [col for col in renamed_df.columns if col.endswith('_zip')]
+    for zip_col in zip_columns:
+        renamed_df[zip_col] = renamed_df[zip_col].apply(
+            lambda val: '' if pd.isna(val) else str(val).strip().removesuffix('.0')
+        )
+    
+    return renamed_df
+
+
+def format_contributions_for_download(df):
+    """Prepare Schedule A data for export."""
+    return format_fec_export(df, CONTRIBUTION_EXPORT_MAP, CONTRIBUTION_EXPORT_ORDER)
+
+
+def format_expenditures_for_download(df):
+    """Prepare Schedule B-style data for export."""
+    return format_fec_export(df, EXPENDITURE_EXPORT_MAP, EXPENDITURE_EXPORT_ORDER)
+
 def load_zip_coordinates():
     """Load ZIP coordinates from comprehensive CSV database"""
     global ZIP_COORDINATES_CACHE
@@ -1836,6 +1943,7 @@ def display_results(results):
     pac_data_df = results['pac_data']
     contributions_df = st.session_state.get('contributions_df', pd.DataFrame())
     expenditures_df = st.session_state.get('expenditures_df', pd.DataFrame())
+    processor_type = st.session_state.get('processor_type', 'fec')
     
     # STREAMLINED VERSION: Show only Individual Donors and Geographic Analysis
     tab1, tab2, tab3 = st.tabs(["🚨 Flagged Individuals", "🗺️ Geographic Analysis", "📊 Summary"])
@@ -2340,8 +2448,15 @@ def display_results(results):
         st.markdown("### Download Raw Transactions")
         download_col1, download_col2 = st.columns(2)
         
-        if not contributions_df.empty:
-            contrib_csv = contributions_df.to_csv(index=False)
+        if processor_type == 'fec':
+            formatted_contributions_df = format_contributions_for_download(contributions_df)
+            formatted_expenditures_df = format_expenditures_for_download(expenditures_df)
+        else:
+            formatted_contributions_df = contributions_df.copy()
+            formatted_expenditures_df = expenditures_df.copy()
+        
+        if not formatted_contributions_df.empty:
+            contrib_csv = formatted_contributions_df.to_csv(index=False)
             download_col1.download_button(
                 label="Download Contributions",
                 data=contrib_csv,
@@ -2351,8 +2466,8 @@ def display_results(results):
         else:
             download_col1.info("No contributions available to download.")
         
-        if not expenditures_df.empty:
-            expend_csv = expenditures_df.to_csv(index=False)
+        if not formatted_expenditures_df.empty:
+            expend_csv = formatted_expenditures_df.to_csv(index=False)
             download_col2.download_button(
                 label="Download Expenditures",
                 data=expend_csv,

@@ -118,6 +118,37 @@ class FECDataProcessor:
         
         return mapped_df
     
+    def split_transactions(self, df):
+        """
+        Separate uploaded data into contribution and expenditure DataFrames
+        based on FEC schedule codes.
+        """
+        if df is None or df.empty:
+            return pd.DataFrame(), pd.DataFrame()
+        
+        # Copy to avoid mutating original data
+        original_df = df.copy()
+        mapped_df = self.detect_and_map_columns(original_df)
+        
+        if 'A' not in mapped_df.columns:
+            return pd.DataFrame(), pd.DataFrame()
+        
+        form_series = mapped_df['A'].astype(str).str.strip().str.upper()
+        
+        contribution_mask = form_series.str.startswith('SA')
+        expenditure_prefixes = (
+            'SB', 'SC', 'SD', 'SE', 'SF', 'SH', 'SI',
+            'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SP',
+            'SQ', 'SR', 'SS', 'ST', 'SU', 'SV', 'SW',
+            'SX', 'SY', 'SZ'
+        )
+        expenditure_mask = form_series.str.startswith(expenditure_prefixes)
+        
+        contributions_df = original_df[contribution_mask].copy()
+        expenditures_df = original_df[expenditure_mask].copy()
+        
+        return contributions_df, expenditures_df
+    
     def process_fec_data(self, df):
         """
         Main processing function that mimics Excel macro logic

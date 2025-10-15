@@ -96,6 +96,76 @@ EXPENDITURE_EXPORT_ORDER = [
     'W', 'AB', 'AC'
 ]
 
+FORM_TYPE_DESCRIPTIONS = {
+    # Schedule A (Receipts)
+    'SA': 'Schedule A (Itemized Receipts)',
+    'SA11A': 'Individual Contributions',
+    'SA11AI': 'Individual Contributions (Earmarked)',
+    'SA11B': 'Party Committee Contributions',
+    'SA11C': 'Other Political Committee Contributions',
+    'SA11D': 'Offsets to Operating Expenditures',
+    'SA12': 'Transfers from Affiliated/Other Party Committees',
+    'SA13': 'Loans Received',
+    'SA14': 'Loan Repayments Received',
+    'SA15': 'Offsets to Operating Expenditures (Refunds)',
+    'SA16': 'Refunds of Contributions',
+    'SA17': 'Other Receipts',
+    'SA18': 'Outstanding Loans Received',
+    # Schedule B (Disbursements)
+    'SB': 'Schedule B (Itemized Disbursements)',
+    'SB21A': 'Federal Share (Allocable Operating Expenditures)',
+    'SB21B': 'Operating Expenditures',
+    'SB21C': 'Other Federal Operating Expenditures',
+    'SB22': 'Transfers to Affiliated/Other Party Committees',
+    'SB23': 'Contributions to Federal Candidates and Committees',
+    'SB24': 'Independent Expenditures',
+    'SB25': 'Coordinated Party Expenditures',
+    'SB26': 'Loan Repayments Made',
+    'SB27': 'Loan Repayments by Other Political Committees',
+    'SB28': 'Loans Made',
+    'SB29': 'Loan Repayments Received from Individuals',
+    'SB30': 'Refunds of Individual Contributions',
+    'SB31': 'Refunds of Party Committee Contributions',
+    'SB32': 'Refunds of Other Political Committee Contributions',
+    'SB33': 'Loan Repayments Received from Party Committees',
+    'SB34': 'Loan Repayments Received from Other Political Committees',
+    'SB35': 'Offsets to Operating Expenditures',
+    'SB36': 'Returns of Political Contributions',
+    'SB37': 'Other Disbursements',
+    # Schedule C, D, etc. (for completeness)
+    'SC': 'Schedule C (Loans)',
+    'SC1': 'Loans and Lines of Credit from Lending Institutions',
+    'SD': 'Schedule D (Debts and Obligations)',
+    'SD10': 'Debts and Obligations Incurred',
+    'SE': 'Schedule E (Independent Expenditures)',
+    'SF': 'Schedule F (Coordinated Party Expenditures)',
+    'SH': 'Schedule H (Allocations)',
+    'SL': 'Schedule L (Levin Funds)',
+    'SO': 'Schedule O (Statements of Position)',
+    'SR': 'Schedule R (Transfers of Allocated Federal/Non-Federal Expenses)'
+}
+
+def get_form_type_name(form_type: str) -> str:
+    """Translate a raw form type code into a human-readable description."""
+    if not form_type:
+        return "Unknown Form Type"
+    
+    code = str(form_type).upper()
+    base = code.split('.', 1)[0]
+    
+    if base in FORM_TYPE_DESCRIPTIONS:
+        return FORM_TYPE_DESCRIPTIONS[base]
+    
+    # Attempt to match progressively shorter prefixes (e.g., SA11A -> SA11 -> SA)
+    for length in range(len(base), 1, -1):
+        prefix = base[:length]
+        if prefix in FORM_TYPE_DESCRIPTIONS:
+            return FORM_TYPE_DESCRIPTIONS[prefix]
+    
+    # Final fallback to schedule letter (e.g., SA, SB)
+    schedule_prefix = base[:2]
+    return FORM_TYPE_DESCRIPTIONS.get(schedule_prefix, "Unknown Form Type")
+
 
 def format_fec_export(df, column_map, column_order):
     """Rename and reorder FEC schedule data for cleaner downloads."""
@@ -163,10 +233,15 @@ def format_contributions_for_download(df):
     formatted_df['OCCUPATION'] = formatted_df.apply(lambda row: safe_str(row.get('occupation', '')), axis=1)
     formatted_df['AMOUNT'] = formatted_df.get('contribution_amount', pd.Series(dtype=float))
     formatted_df['TYPE'] = formatted_df.apply(lambda row: safe_str(row.get('entity_type', '')), axis=1)
+    formatted_df['form_type_name'] = formatted_df.apply(
+        lambda row: get_form_type_name(row.get('form_type', '')),
+        axis=1
+    )
     
     preferred_columns = [
         'transaction_id',
         'form_type',
+        'form_type_name',
         'contribution_date',
         'FULL NAME',
         'entity_type',
@@ -228,10 +303,14 @@ def format_expenditures_for_download(df):
     formatted_df['CITY'] = formatted_df.apply(lambda row: safe_str(row.get('payee_city', '')), axis=1)
     formatted_df['STATE'] = formatted_df.apply(lambda row: safe_str(row.get('payee_state', '')), axis=1)
     formatted_df['ZIP'] = formatted_df.apply(lambda row: safe_str(row.get('payee_zip', '')), axis=1)
-    formatted_df['AMOUNT'] = formatted_df.get('disbursement_amount', pd.Series(dtype=float))
+    formatted_df['form_type_name'] = formatted_df.apply(
+        lambda row: get_form_type_name(row.get('form_type', '')),
+        axis=1
+    )
     
     preferred_columns = [
         'form_type',
+        'form_type_name',
         'committee_id',
         'disbursement_date',
         'payee_organization_name',

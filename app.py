@@ -853,7 +853,7 @@ def display_dashboard_cards(flagged_donors):
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("View Bad Employer Details", key="bad_emp", use_container_width=True):
+            if st.button("View Bad Employer Details", key="bad_emp", width='stretch'):
                 st.session_state['show_section'] = 'bad_employer'
         else:
             st.markdown("""
@@ -874,7 +874,7 @@ def display_dashboard_cards(flagged_donors):
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("View High Confidence Details", key="high_conf", use_container_width=True):
+            if st.button("View High Confidence Details", key="high_conf", width='stretch'):
                 st.session_state['show_section'] = 'high_confidence'
         else:
             st.markdown("""
@@ -895,7 +895,7 @@ def display_dashboard_cards(flagged_donors):
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("View Medium Confidence Details", key="medium_conf", use_container_width=True):
+            if st.button("View Medium Confidence Details", key="medium_conf", width='stretch'):
                 st.session_state['show_section'] = 'medium_confidence'
         else:
             st.markdown("""
@@ -1141,7 +1141,7 @@ def display_pac_dashboard_cards(pac_general_df):
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("View Bad Groups Details", key="bad_groups", use_container_width=True):
+            if st.button("View Bad Groups Details", key="bad_groups", width='stretch'):
                 st.session_state['show_pac_section'] = 'bad_groups'
         else:
             st.markdown("""
@@ -1162,7 +1162,7 @@ def display_pac_dashboard_cards(pac_general_df):
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("View Industry Details", key="industry", use_container_width=True):
+            if st.button("View Industry Details", key="industry", width='stretch'):
                 st.session_state['show_pac_section'] = 'industry'
         else:
             st.markdown("""
@@ -1183,7 +1183,7 @@ def display_pac_dashboard_cards(pac_general_df):
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("View LPAC Details", key="lpac", use_container_width=True):
+            if st.button("View LPAC Details", key="lpac", width='stretch'):
                 st.session_state['show_pac_section'] = 'lpac'
         else:
             st.markdown("""
@@ -1362,7 +1362,7 @@ def display_industry_detail(industry_df):
             })
         
         if industry_summary:
-            st.dataframe(pd.DataFrame(industry_summary), use_container_width=True)
+            st.dataframe(pd.DataFrame(industry_summary), width='stretch')
     
     # 2. Organization Type Summary Table
     st.subheader("🏢 Organization Type Totals")
@@ -1381,7 +1381,7 @@ def display_industry_detail(industry_df):
             })
         
         if org_summary:
-            st.dataframe(pd.DataFrame(org_summary), use_container_width=True)
+            st.dataframe(pd.DataFrame(org_summary), width='stretch')
     
     # 3. Individual PAC Dropdowns
     st.subheader("🔍 Individual PAC Details")
@@ -1881,7 +1881,7 @@ def display_geographic_summary_tables(state_totals_df, state_breakdown):
                 'total_amount': 'Total Amount',
                 'percentage': 'Percentage'
             },
-            use_container_width=True,
+            width='stretch',
             hide_index=True
         )
     else:
@@ -2099,7 +2099,7 @@ def display_results(results):
             
             # Show all individual donors in table
             st.subheader("All Individual Donors")
-            st.dataframe(bad_donors_df, use_container_width=True)
+            st.dataframe(bad_donors_df, width='stretch')
             
             # Download button for individual donors
             csv_individuals = bad_donors_df.to_csv(index=False)
@@ -2183,7 +2183,7 @@ def display_results(results):
                     st.subheader("🗺️ US State Overview")
                     if not geographic_data['state_totals'].empty:
                         us_map = create_us_state_choropleth(geographic_data['state_totals'])
-                        st.plotly_chart(us_map, use_container_width=True)
+                        st.plotly_chart(us_map, width='stretch')
                     else:
                         st.info("No state data available for mapping")
                 
@@ -2213,7 +2213,7 @@ def display_results(results):
                                 help="Select a different state to view its contribution map"
                             )
                             
-                            if st.button("Switch to Selected State", type="primary", use_container_width=True):
+                            if st.button("Switch to Selected State", type="primary", width='stretch'):
                                 if selected_state_option != current_display:
                                     new_state = selected_state_option[:2]
                                     st.session_state['geographic_focus_state'] = new_state
@@ -2396,7 +2396,13 @@ def display_results(results):
                 
                 # Convert dates and create time series
                 df_with_dates = bad_donors_df.copy()
-                df_with_dates['date'] = pd.to_datetime(df_with_dates['date'], errors='coerce')
+                raw_dates = df_with_dates['date'].astype(str)
+                parsed_dates = pd.to_datetime(raw_dates, format='%Y-%m-%d', errors='coerce')
+                missing_mask = parsed_dates.isna()
+                if missing_mask.any():
+                    fallback_dates = pd.to_datetime(raw_dates[missing_mask], format='%Y%m%d', errors='coerce')
+                    parsed_dates = parsed_dates.mask(missing_mask, fallback_dates)
+                df_with_dates['date'] = parsed_dates
                 df_with_dates = df_with_dates.dropna(subset=['date'])
                 
                 if not df_with_dates.empty:
@@ -2538,7 +2544,13 @@ def display_results(results):
                 
                 # Convert dates and create time series
                 df_with_dates = bad_donors_df.copy()
-                df_with_dates['date'] = pd.to_datetime(df_with_dates['date'], errors='coerce')
+                raw_dates = df_with_dates['date'].astype(str)
+                parsed_dates = pd.to_datetime(raw_dates, format='%Y-%m-%d', errors='coerce')
+                missing_mask = parsed_dates.isna()
+                if missing_mask.any():
+                    fallback_dates = pd.to_datetime(raw_dates[missing_mask], format='%Y%m%d', errors='coerce')
+                    parsed_dates = parsed_dates.mask(missing_mask, fallback_dates)
+                df_with_dates['date'] = parsed_dates
                 df_with_dates = df_with_dates.dropna(subset=['date'])
                 
                 if not df_with_dates.empty:
@@ -2760,7 +2772,7 @@ def main():
             if df is not None:
                 st.subheader("📄 File Data Preview")
                 st.write(f"Loaded {len(df)} rows, {len(df.columns)} columns from {uploaded_file.name}")
-                st.dataframe(df.head(), use_container_width=True)
+                st.dataframe(df.head(), width='stretch')
                 
                 if file_format == "State or Local Report":
                     st.subheader("🗂️ Column Mapping")

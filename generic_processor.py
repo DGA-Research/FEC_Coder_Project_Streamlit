@@ -47,30 +47,51 @@ class GenericDataProcessor:
     def _map_columns(self, df, column_mapping):
         """Map user columns to standardized internal format"""
         mapped_data = {}
+        index = df.index
+
+        def _get_series(mapping_key, default_value=''):
+            """Return a Series that matches the original dataframe length."""
+            column_name = column_mapping.get(mapping_key)
+            if column_name and column_name in df.columns:
+                return df[column_name].copy()
+            # Fall back to a series filled with the provided default
+            return pd.Series(default_value, index=index)
         
         # Required fields
-        mapped_data['first_name'] = df[column_mapping['first_name']] if column_mapping['first_name'] else ''
-        mapped_data['last_name'] = df[column_mapping['last_name']] if column_mapping['last_name'] else ''
-        mapped_data['state'] = df[column_mapping['state']] if column_mapping['state'] else ''
-        mapped_data['amount'] = df[column_mapping['amount']] if column_mapping['amount'] else 0
+        mapped_data['first_name'] = _get_series('first_name', '')
+        mapped_data['last_name'] = _get_series('last_name', '')
+        mapped_data['state'] = _get_series('state', '')
+        mapped_data['amount'] = _get_series('amount', 0)
         
         # Optional fields
-        mapped_data['zip_code'] = df[column_mapping['zip_code']] if column_mapping['zip_code'] else ''
-        mapped_data['date'] = df[column_mapping['date']] if column_mapping['date'] else ''
-        mapped_data['employer'] = df[column_mapping['employer']] if column_mapping['employer'] else ''
-        mapped_data['address'] = df[column_mapping['address']] if column_mapping['address'] else ''
+        mapped_data['zip_code'] = _get_series('zip_code', '')
+        mapped_data['date'] = _get_series('date', '')
+        mapped_data['employer'] = _get_series('employer', '')
+        mapped_data['address'] = _get_series('address', '')
         
         # Create DataFrame
         mapped_df = pd.DataFrame(mapped_data)
         
+        def _normalize_text(series, uppercase=False):
+            """Convert nullable series to clean strings without raising on pd.NA."""
+            if series.empty:
+                return series.astype(object)
+            cleaned = series.fillna('').replace({pd.NA: ''})
+            cleaned = cleaned.astype(str).str.strip()
+            if uppercase:
+                cleaned = cleaned.str.upper()
+            return cleaned
+        
         # Clean and standardize data
-        mapped_df['first_name'] = mapped_df['first_name'].astype(str).str.strip().str.upper()
-        mapped_df['last_name'] = mapped_df['last_name'].astype(str).str.strip().str.upper()
-        mapped_df['state'] = mapped_df['state'].astype(str).str.strip().str.upper()
-        mapped_df['employer'] = mapped_df['employer'].astype(str).str.strip().str.upper()
+        mapped_df['first_name'] = _normalize_text(mapped_df['first_name'], uppercase=True)
+        mapped_df['last_name'] = _normalize_text(mapped_df['last_name'], uppercase=True)
+        mapped_df['state'] = _normalize_text(mapped_df['state'], uppercase=True)
+        mapped_df['employer'] = _normalize_text(mapped_df['employer'], uppercase=True)
+        mapped_df['address'] = _normalize_text(mapped_df['address'])
+        mapped_df['date'] = _normalize_text(mapped_df['date'])
         
         # Clean ZIP codes
-        mapped_df['zip_code'] = mapped_df['zip_code'].astype(str).str.strip()
+        mapped_df['zip_code'] = _normalize_text(mapped_df['zip_code'])
         mapped_df['zip_code'] = mapped_df['zip_code'].str.extract(r'(\d{5})')[0]  # Extract 5-digit ZIP
         
         # Enhanced amount processing for various currency formats

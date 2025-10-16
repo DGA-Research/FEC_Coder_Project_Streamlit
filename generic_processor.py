@@ -55,7 +55,8 @@ class GenericDataProcessor:
             if column_name and column_name in df.columns:
                 return df[column_name].copy()
             # Fall back to a series filled with the provided default
-            return pd.Series(default_value, index=index)
+            # Use object dtype for text fields to avoid pandas StringArray edge cases
+            return pd.Series(default_value, index=index, dtype=object)
         
         # Required fields
         mapped_data['first_name'] = _get_series('first_name', '')
@@ -82,17 +83,32 @@ class GenericDataProcessor:
                 cleaned = cleaned.str.upper()
             return cleaned
         
-        # Clean and standardize data
+        # Clean and standardize required text fields
         mapped_df['first_name'] = _normalize_text(mapped_df['first_name'], uppercase=True)
         mapped_df['last_name'] = _normalize_text(mapped_df['last_name'], uppercase=True)
         mapped_df['state'] = _normalize_text(mapped_df['state'], uppercase=True)
-        mapped_df['employer'] = _normalize_text(mapped_df['employer'], uppercase=True)
-        mapped_df['address'] = _normalize_text(mapped_df['address'])
-        mapped_df['date'] = _normalize_text(mapped_df['date'])
+
+        # Optional fields: normalize only when user mapped them; otherwise fill with blanks
+        if column_mapping.get('employer'):
+            mapped_df['employer'] = _normalize_text(mapped_df['employer'], uppercase=True)
+        else:
+            mapped_df['employer'] = mapped_df['employer'].fillna('')
         
-        # Clean ZIP codes
-        mapped_df['zip_code'] = _normalize_text(mapped_df['zip_code'])
-        mapped_df['zip_code'] = mapped_df['zip_code'].str.extract(r'(\d{5})')[0]  # Extract 5-digit ZIP
+        if column_mapping.get('address'):
+            mapped_df['address'] = _normalize_text(mapped_df['address'])
+        else:
+            mapped_df['address'] = mapped_df['address'].fillna('')
+        
+        if column_mapping.get('date'):
+            mapped_df['date'] = _normalize_text(mapped_df['date'])
+        else:
+            mapped_df['date'] = mapped_df['date'].fillna('')
+        
+        if column_mapping.get('zip_code'):
+            mapped_df['zip_code'] = _normalize_text(mapped_df['zip_code'])
+            mapped_df['zip_code'] = mapped_df['zip_code'].str.extract(r'(\d{5})')[0]  # Extract 5-digit ZIP
+        else:
+            mapped_df['zip_code'] = mapped_df['zip_code'].fillna('')
         
         # Enhanced amount processing for various currency formats
         mapped_df['amount'] = mapped_df['amount'].apply(self._parse_amount)
